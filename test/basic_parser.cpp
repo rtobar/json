@@ -1296,22 +1296,27 @@ public:
             [this](string_view expected)
         {
             good(expected);
-            utf8_parser p;
-            for(std::size_t i = 0; i < expected.size(); ++i)
+            for (std::size_t write_size : {1, 2, 4, 8})
             {
-                error_code ec;
-                auto more = (i != expected.size() - 1);
-                auto written = p.write(more,
-                        expected.data() + i, 1, ec);
-                BOOST_TEST(written == 1);
-                BOOST_TEST( !ec);
+                utf8_parser p;
+                for(std::size_t i = 0; i < expected.size(); i += write_size)
+                {
+                    error_code ec;
+                    write_size = std::min(write_size, expected.size() - i);
+                    auto more = (i < expected.size() - write_size);
+                    auto written = p.write(more,
+                            expected.data() + i, write_size, ec);
+                    BOOST_TEST(written == write_size);
+                    BOOST_TEST( !ec);
+                }
+                BOOST_TEST(p.captured() ==
+                    expected.substr(1, expected.size() - 2));
             }
-            BOOST_TEST(p.captured() == 
-                expected.substr(1, expected.size() - 2));
         };
 
         check("\"\xd1\x82\"");
         check("\"\xd1\x82\xd0\xb5\xd1\x81\xd1\x82\"");
+        check("\"\xd1\x81\xd1\x82\xd1\x80\xd0\xbe\xd0\xba\xd0\xb0 - \xd1\x82\xd0\xb5\xd1\x81\xd1\x82\"");
         check("\"\xc3\x0b1""and\xc3\xba\"");
     }
 
